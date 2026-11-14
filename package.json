@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@langchain/core": "^1.4.0",
+    "@langchain/google": "^0.2.14",
+    "@langchain/google-genai": "^2.3.6",
+    "@langchain/react": "^1.2.13",
+    "langchain": "^1.6.5"
+  }
+}
