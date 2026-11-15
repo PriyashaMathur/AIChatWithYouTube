@@ -1,17 +1,15 @@
 import "dotenv/config";
-import { embedDocuments, embedQuery } from "./embeddings.js";
 import { ChatGoogle } from "@langchain/google";
 import data from "./data.js";
 import { Document } from "@langchain/core/documents";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { tool } from "@langchain/core/tools";
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { z } from "zod";
 import { MemorySaver } from "@langchain/langgraph";
 import { ChatGroq } from "@langchain/groq";
-
+import { getVectorStore } from "./src/services/vector.service.js";
 const video1 = data[0];
 const docs = [
   new Document({
@@ -30,12 +28,12 @@ const splitter = new RecursiveCharacterTextSplitter({
 const chunks = await splitter.splitDocuments(docs);
 
 // ----------------------Embed the Model-------------------------------------------
-const embeddings = {
-  embedDocuments,
-  embedQuery,
-};
-// store in vector space-----------------
-const vectorStore = new MemoryVectorStore(embeddings);
+// 2. Initialise PGVectorStore
+
+const vectorStore = await getVectorStore();
+
+// 3. Store chunks in Neon
+
 await vectorStore.addDocuments(chunks);
 
 // ------------Retrieve the most relevant chunks--------------------
@@ -44,11 +42,9 @@ const retrievalTool = tool(
   async ({ query }) => {
     console.log("Retrieving docs for query:---------");
     console.log("Video ID:", video1.video_id);
-    const retrievedDocs = await vectorStore.similaritySearch(
-      query,
-      3,
-      (doc) => doc.metadata?.video_id === video1.video_id,
-    );
+    const retrievedDocs = await vectorStore.similaritySearch(query, 3, {
+      video_id: video1.video_id,
+    });
     const serializedDocs = retrievedDocs
       .map((doc) => doc.pageContent)
       .join("\n");
@@ -86,16 +82,13 @@ const agent = createReactAgent({
   tools,
   checkpointer: checkPointSaver,
 });
-console.log(
-  "Question 1: What is being used for web scraping, and what role does it play in this project?",
-);
+console.log("Question 1:  What is the video about");
 const result = await agent.invoke(
   {
     messages: [
       {
         role: "user",
-        content:
-          " What is being used for web scraping, and what role does it play in this project?",
+        content: "What is the video about",
       },
     ],
   },
