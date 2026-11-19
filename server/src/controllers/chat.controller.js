@@ -1,28 +1,27 @@
 import { processChat } from "../services/chat.service.js";
 
-export async function chat(req, res) {
+export async function chat(req, res, next) {
   try {
     const { videoId, question } = req.body;
 
-    if (!videoId || !question) {
-      return res.status(400).json({
-        success: false,
-        message: "videoId and question are required"
-      });
+    // Validate videoId
+    if (
+      typeof videoId !== "string" ||
+      !/^[a-zA-Z0-9_-]{11}$/.test(videoId)
+    ) {
+      const error = new Error("Invalid YouTube video ID");
+      error.statusCode = 400;
+      throw error;
     }
 
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid YouTube video ID"
-      });
-    }
-
-    if (typeof question !== "string" || !question.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Question must be a non-empty string"
-      });
+    // Validate question
+    if (
+      typeof question !== "string" ||
+      !question.trim()
+    ) {
+      const error = new Error("Question must be a non-empty string");
+      error.statusCode = 400;
+      throw error;
     }
 
     const result = await processChat(videoId, question.trim());
@@ -30,17 +29,11 @@ export async function chat(req, res) {
     return res.status(200).json({
       success: true,
       videoId,
-      question,
+      question: question.trim(),
       answer: result.answer
     });
 
   } catch (error) {
-    console.error("Chat Controller Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Failed to process chat request",
-      error: error.message
-    });
+    next(error);
   }
 }
